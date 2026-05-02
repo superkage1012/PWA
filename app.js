@@ -5,8 +5,8 @@ const statusText = document.querySelector("#status");
 const resultField = document.querySelector("#result");
 const copyButton = document.querySelector("#copyButton");
 
-let stream;
 let codeReader;
+let controls;
 let lastValue = "";
 
 async function registerServiceWorker() {
@@ -37,23 +37,17 @@ function updateResult(value) {
 }
 
 async function createDetector() {
-  if (!window.ZXing?.BrowserMultiFormatReader) {
-    throw new Error("掃描模組載入失敗，請確認網路可連到 jsDelivr CDN。");
+  if (!window.ZXingBrowser?.BrowserQRCodeReader) {
+    throw new Error("掃描模組載入失敗，請確認網路可連到 CDN。");
   }
 
-  codeReader = new window.ZXing.BrowserMultiFormatReader();
+  codeReader = new window.ZXingBrowser.BrowserQRCodeReader();
 }
 
 function stopScanning() {
+  controls?.stop();
+  controls = undefined;
   codeReader?.reset();
-
-  if (stream) {
-    for (const track of stream.getTracks()) {
-      track.stop();
-    }
-  }
-
-  stream = undefined;
   preview.srcObject = null;
   setButtons(false);
   setStatus("已停止掃描。");
@@ -64,20 +58,19 @@ async function startScanning() {
     setStatus("初始化掃描器中...");
     await createDetector();
 
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: "environment" }
-      },
-      audio: false
-    });
-
-    preview.srcObject = stream;
-    await preview.play();
-
     updateResult("");
     setButtons(true);
-    setStatus("相機已開啟，請將 QR code 放進框內。");
-    codeReader.decodeFromVideoElement(preview, (result, error) => {
+    setStatus("相機已開啟，正在掃描中，請把 QR code 靠近並置中。");
+
+    controls = await codeReader.decodeFromConstraints({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        focusMode: "continuous"
+      },
+      audio: false
+    }, preview, (result, error) => {
       if (result) {
         const nextValue = result.getText();
         if (!nextValue || nextValue === lastValue) {
@@ -86,6 +79,8 @@ async function startScanning() {
 
         updateResult(nextValue);
         setStatus("已掃描到 QR code。");
+        controls?.stop();
+        controls = undefined;
         return;
       }
 
@@ -94,9 +89,9 @@ async function startScanning() {
       }
 
       if (
-        error instanceof window.ZXing.NotFoundException ||
-        error instanceof window.ZXing.ChecksumException ||
-        error instanceof window.ZXing.FormatException
+        error instanceof window.ZXingBrowser.NotFoundException ||
+        error instanceof window.ZXingBrowser.ChecksumException ||
+        error instanceof window.ZXingBrowser.FormatException
       ) {
         return;
       }
