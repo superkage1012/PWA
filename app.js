@@ -6,8 +6,7 @@ const resultField = document.querySelector("#result");
 const copyButton = document.querySelector("#copyButton");
 
 let stream;
-let detector;
-let scanTimer;
+let codeReader;
 let lastValue = "";
 
 async function registerServiceWorker() {
@@ -38,45 +37,15 @@ function updateResult(value) {
 }
 
 async function createDetector() {
-  if (!("BarcodeDetector" in window)) {
-    throw new Error("這個裝置的瀏覽器不支援 BarcodeDetector。請使用最新版 Chrome 或 Edge。");
+  if (!window.ZXing?.BrowserMultiFormatReader) {
+    throw new Error("掃描模組載入失敗，請確認網路可連到 jsDelivr CDN。");
   }
 
-  const formats = await BarcodeDetector.getSupportedFormats();
-  if (!formats.includes("qr_code")) {
-    throw new Error("目前瀏覽器不支援 QR code 掃描格式。");
-  }
-
-  detector = new BarcodeDetector({ formats: ["qr_code"] });
-}
-
-async function scanFrame() {
-  if (!detector || preview.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-    return;
-  }
-
-  try {
-    const codes = await detector.detect(preview);
-    if (codes.length === 0) {
-      return;
-    }
-
-    const nextValue = codes[0].rawValue ?? "";
-    if (!nextValue || nextValue === lastValue) {
-      return;
-    }
-
-    updateResult(nextValue);
-    setStatus("已掃描到 QR code。");
-  } catch (error) {
-    console.error("Scan failed:", error);
-    setStatus("掃描時發生錯誤，請稍後再試。");
-  }
+  codeReader = new window.ZXing.BrowserMultiFormatReader();
 }
 
 function stopScanning() {
-  window.clearInterval(scanTimer);
-  scanTimer = undefined;
+  codeReader?.reset();
 
   if (stream) {
     for (const track of stream.getTracks()) {
@@ -108,8 +77,33 @@ async function startScanning() {
     updateResult("");
     setButtons(true);
     setStatus("相機已開啟，請將 QR code 放進框內。");
+    codeReader.decodeFromVideoElement(preview, (result, error) => {
+      if (result) {
+        const nextValue = result.getText();
+        if (!nextValue || nextValue === lastValue) {
+          return;
+        }
 
-    scanTimer = window.setInterval(scanFrame, 350);
+        updateResult(nextValue);
+        setStatus("已掃描到 QR code。");
+        return;
+      }
+
+      if (!error) {
+        return;
+      }
+
+      if (
+        error instanceof window.ZXing.NotFoundException ||
+        error instanceof window.ZXing.ChecksumException ||
+        error instanceof window.ZXing.FormatException
+      ) {
+        return;
+      }
+
+      console.error("Scan failed:", error);
+      setStatus("掃描時發生錯誤，請稍後再試。");
+    });
   } catch (error) {
     console.error("Unable to start scanner:", error);
     stopScanning();
