@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="簡單的 QR Code 掃描 PWA">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/icon-192.svg">
+    <link rel="stylesheet" href="styles.css">
+    <title>KAGE QR Scanner</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="card">
+        <p class="eyebrow">PWA QR Scanner</p>
+        <h1>掃描二維碼</h1>
+        <p class="intro">開啟相機後，對準 QR code，內容會直接顯示在下方。</p>
+
+        <div class="scanner-frame">
+          <video id="preview" playsinline muted></video>
+          <div class="overlay" aria-hidden="true"></div>
+        </div>
+
+        <div class="controls">
+          <button id="startButton" type="button">開始掃描</button>
+          <button id="stopButton" type="button" class="secondary" disabled>停止</button>
+        </div>
+
+        <p id="status" class="status">等待開始掃描。</p>
+
+        <section class="result-panel" aria-live="polite">
+          <label for="result">掃描結果</label>
+          <textarea id="result" rows="5" readonly placeholder="掃描到的內容會顯示在這裡"></textarea>
+          <button id="copyButton" type="button" class="secondary" disabled>複製內容</button>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
